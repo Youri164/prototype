@@ -57,20 +57,21 @@ hide_streamlit_style = """
         border-radius: 14px;
         padding: 14px 16px;
     }
-    /* 예시 버튼 줄은 화면이 좁아도 무조건 가로 유지 */
-    .example-marker + div[data-testid="stHorizontalBlock"] {
+    /* 앱 내 모든 st.columns를 화면 폭과 무관하게 가로로 강제 */
+    div[data-testid="stHorizontalBlock"] {
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
         gap: 8px;
     }
-    .example-marker + div[data-testid="stHorizontalBlock"] > div {
-        width: 50% !important;
-        flex: 1 1 50% !important;
+    div[data-testid="stHorizontalBlock"] > div {
+        width: 100% !important;
+        flex: 1 1 0 !important;
         min-width: 0 !important;
     }
-    /* --- 예시 선택 버튼 전용 스타일 (박스 없이, 차분한 블루그레이 톤) --- */
-    .example-marker + div[data-testid="stHorizontalBlock"] button {
+
+    /* 컬럼 안에 있는 버튼(=예시 버튼)만 블루그레이 톤으로 */
+    div[data-testid="stHorizontalBlock"] button {
         background: #4A5A6A;
         color: #F0F0F0;
         border: none;
@@ -143,10 +144,10 @@ if "msg_input" not in st.session_state:
 st.markdown('<div class="example-marker"></div>', unsafe_allow_html=True)
 ex_col1, ex_col2 = st.columns(2)
 with ex_col1:
-    if st.button("✅ 예시 (정상)"):
+    if st.button("✅ 예시1 (정상)"):
         st.session_state.msg_input = TRUE_EXAMPLE
 with ex_col2:
-    if st.button("🚨 예시 (피싱)"):
+    if st.button("🚨 예시2 (피싱)"):
         st.session_state.msg_input = FAKE_EXAMPLE
 
 
