@@ -9,63 +9,85 @@ st.set_page_config(
 )
 
 st.title("🛡️ AI 기반 메시지 피싱 탐지 시스템")
-st.markdown("수신한 메시지와 링크(URL)를 입력하여 사기 위험도를 실시간으로 분석하세요.")
+st.markdown("수신한 문자 메시지 전체(본문+링크)를 한 번에 붙여넣어 사기 위험도를 분석하세요.")
 
 st.markdown("---")
 
-# 사용자 입력 폼
+# 1. 국내 주요 은행 공식 도메인 및 키워드 딕셔너리 정의
+BANK_DOMAINS = {
+    "국민은행": {"official": "kbstar.com", "keywords": ["국민은행", "KB국민"]},
+    "우리은행": {"official": "wooribank.com", "keywords": ["우리은행"]},
+    "신한은행": {"official": "shinhan.com", "keywords": ["신한은행", "신한"]},
+    "하나은행": {"official": "kebhana.com", "keywords": ["하나은행", "KEB하나"]},
+    "농협": {"official": "nonghyup.com", "keywords": ["농협", "NH농협"]},
+    "기업은행": {"official": "ibk.co.kr", "keywords": ["기업은행", "IBK"]}
+}
+
 with st.form("phishing_form"):
     st.subheader("📥 분석 대상 입력")
     
-    message_input = st.text_area(
-        "메시지 본문 내용", 
-        placeholder="예: [국민은행] 긴급 대출 대상자로 선정되셨습니다. 아래 링크를 통해 신청하세요."
-    )
-    
-    url_input = st.text_input(
-        "연결된 링크 (URL)", 
-        placeholder="예: https://bit.ly/3xyz 또는 http://kb-secure-login.com"
+    # 2. 링크를 따로 안 받고 한 번에 복-붙할 수 있는 통합 입력창
+    full_text_input = st.text_area(
+        "문자 메시지 전체 내용 (본문 + 링크 포함)", 
+        height=150,
+        placeholder="[국민은행] 긴급 대출 안내. 아래 링크를 확인하세요.\nhttps://kb-secure-login.com/event"
     )
     
     submitted = st.form_submit_button("🔍 사기 위험 분석 실행")
 
 if submitted:
-    if not message_input.strip():
+    if not full_text_input.strip():
         st.warning("⚠️ 분석할 메시지 내용을 입력해주세요.")
     else:
-        with st.spinner("🔄 문맥 정보 및 링크 주소를 분석 중입니다..."):
+        with st.spinner("🔄 텍스트 내 URL 추출 및 피싱 패턴 정밀 분석 중..."):
             
-            # --- [통합된 룰베이스 분석 로직] ---
-            text = message_input
-            url = url_input if url_input else ""
+            text = full_text_input
+            
+            # --- [텍스트 내부에서 URL 자동 추출 로직] ---
+            url_pattern = r'https?://[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:/[^\s]*)?'
+            extracted_urls = re.findall(url_pattern, text)
+            found_url = extracted_urls[0] if extracted_urls else ""
             
             risk_score = 10
             detected_type = "정상 (안전)"
             reasons = []
 
-            # 룰 1: 국민은행 사칭
-            if "국민은행" in text and ("입금" in text or "긴급" in text or "대출" in text):
-                if "kb-secure" not in url and "kbstar.com" not in url:
-                    risk_score = 95
-                    detected_type = "국민은행 사칭 피싱 (고위험)"
-                    reasons.append("본문에 '국민은행'과 긴급 행위 요구가 포함되어 있으나, 연결된 URL이 공식 도메인과 일치하지 않습니다.")
-            
-            # 룰 2: 택배 사칭
-            elif "택배" in text or "배송" in text:
-                if "cjlogistics" not in url and "hanjin" not in url:
-                    risk_score = 85
-                    detected_type = "택배 사칭 피싱 (주의)"
-                    reasons.append("택배 배송 안내 문구이나, 의심스러운 외부 링크 주소가 포함되어 있습니다.")
+            # --- [국내 은행 사칭 및 타이포스쿼팅(변형 도메인) 탐지 로직] ---
+            bank_matched = False
+            for bank_name, info in BANK_DOMAINS.items():
+                # 문자에 기관명이 포함되어 있는지 확인
+                has_keyword = any(kw in text for kw in info["keywords"])
+                
+                if has_keyword:
+                    bank_matched = True
+                    official_domain = info["official"] # 예: wooribank.com
                     
-            # 룰 3: 단축 URL 감지
-            if "bit.ly" in url or "t.co" in url or "is.gd" in url:
-                risk_score += 20
-                reasons.append("단축 URL(리디렉션 의심 주소)이 사용되었습니다.")
+                    if found_url:
+                        # 공식 도메인이 URL에 포함되어 있는지 확인
+                        if official_domain in found_url:
+                            reasons.append(f"'{bank_name}' 관련 메시지이며, 공식 도메인({official_domain})이 확인되었습니다.")
+                        else:
+                            # 텍스트에는 은행이 있는데 링크가 공식 도메인과 다름 (타이포스쿼팅 또는 가짜 링크 의심)
+                            risk_score = 90
+                            detected_type = f"{bank_name} 사칭 피싱 (고위험)"
+                            reasons.append(f"⚠️ 본문에 '{bank_name}'이 언급되었으나, 연결된 링크 주소가 공식 도메인({official_domain})과 일치하지 않거나 변형(타이포스쿼팅)되었습니다.")
+                    else:
+                        # 기관명은 있는데 링크가 아예 없는 경우
+                        risk_score = 50
+                        detected_type = f"{bank_name} 관련 주의 문자"
+                        reasons.append(f"'{bank_name}' 사칭 문구는 있으나 확인된 링크가 없습니다. 공식 번호인지 확인하세요.")
 
+            # --- [추가 룰: 단축 URL 감지] ---
+            if any(short in found_url for short in ["bit.ly", "t.co", "is.gd", "url.kr", "Me2.do"]):
+                risk_score += 25
+                reasons.append("🚨 주소를 숨기기 위한 단축 URL(리디렉션 의심)이 포함되어 있습니다.")
+
+            # 기본 안전 판정
             if not reasons:
-                reasons.append("특이 사기 패턴이 발견되지 않은 안전한 메시지입니다.")
+                reasons.append("특이 사기 패턴 및 의심스러운 외부 링크가 발견되지 않았습니다.")
             
-            risk_score = min(risk_score, 100)
+            risk_score = min(max(risk_score, 0), 100) # 점수는 0~100 사이로 고정
+            
             # ---------------------------------
             
             st.markdown("---")
@@ -73,14 +95,20 @@ if submitted:
             
             col1, col2 = st.columns(2)
             with col1:
-                st.metric(label="최종 위험도 점수", value=f"{risk_score}점 / 100점")
-            with col2:
                 st.metric(label="판정 사기 유형", value=detected_type)
+            with col2:
+                st.metric(label="추출된 링크", value=found_url if found_url else "없음")
+
+            # 1. 숫자가 띡 안 나오고 게이지(프로그레스 바) 형태로 차오르도록 구현
+            st.markdown("### 🌡️ 최종 위험도 게이지")
+            st.progress(risk_score) # 0~100 숫자에 따라 바가 자동 조절됨
+            st.markdown(f"**위험도 점수: {risk_score}점 / 100점**")
             
+            # 위험도별 경고 문구 출력
             if risk_score >= 80:
-                st.error(f"🚨 **고위험 경고:** 해당 메시지는 피싱 사기일 확률이 매우 높습니다!")
+                st.error(f"🚨 **고위험 경고:** 해당 메시지는 피싱 사기일 확률이 매우 높습니다! 절대 링크를 누르지 마세요.")
             elif risk_score >= 40:
-                st.warning(f"⚠️ **주의 요망:** 의심스러운 패턴이 발견되었습니다. 주의하세요.")
+                st.warning(f"⚠️ **주의 요망:** 의심스러운 패턴이 감별되었습니다. 신중히 확인하세요.")
             else:
                 st.success(f"✅ **안전:** 특이 사기 패턴이 발견되지 않았습니다.")
             
