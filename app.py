@@ -8,6 +8,19 @@ st.set_page_config(
     page_icon="🛡️",
     layout="centered"
 )
+# --- [Streamlit 기본 UI 요소 및 왕관/깃허브 아이콘 숨기기 CSS] ---
+hide_streamlit_style = """
+    <style>
+    #MainMenu {visibility: hidden;} /* 우측 상단 메뉴 숨기기 */
+    footer {visibility: hidden;} /* 하단 Streamlit 로고 숨기기 */
+    header {visibility: hidden;} /* 상단 헤더 숨기기 */
+    .stDeployButton {display:none;} /* 배포 버튼 숨기기 */
+    /* 우측 상단 GitHub 아이콘, Fork 버튼 영역 전체 숨기기 */
+    .stAppToolbar {display: none;}
+    [data-testid="stHeader"] {display: none;}
+    </style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)\
 
 st.title("🛡️ AI 기반 메시지 피싱 탐지 시스템")
 st.markdown("수신한 문자 메시지 전체(본문+링크)를 한 번에 붙여넣어 사기 위험도를 분석하세요.")
@@ -173,9 +186,5 @@ if submitted:
                 st.error(f"🚨 **고위험 경고:** 해당 메시지는 피싱 사기일 확률이 매우 높습니다! 절대 링크를 누르지 마세요.")
             elif risk_score >= 40:
                 st.warning(f"⚠️ **주의 요망:** 의심스러운 패턴이 감별되었습니다. 신중히 확인하세요.")
-            else:
-                st.success(f"✅ **안전:** 특이 사기 패턴이 발견되지 않았습니다.")
-            
-            st.markdown("### 📌 세부 위험 판단 근거")
-            for idx, reason in enumerate(reasons, 1):
+erate(reasons, 1):
                 st.markdown(f"{idx}. {reason}")
