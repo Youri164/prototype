@@ -1,3 +1,4 @@
+import time
 import streamlit as st
 import re
 
@@ -99,9 +100,72 @@ if submitted:
             with col2:
                 st.metric(label="추출된 링크", value=found_url if found_url else "없음")
 
-            # 1. 숫자가 띡 안 나오고 게이지(프로그레스 바) 형태로 차오르도록 구현
+            # ... risk_score 계산 이후 ...
+
             st.markdown("### 🌡️ 최종 위험도 게이지")
-            st.progress(risk_score) # 0~100 숫자에 따라 바가 자동 조절됨
+
+            # 1. 점수 구간별 색상 결정
+            def get_gauge_color(score):
+                if score >= 80:
+                    return "#FF4B4B"   # 빨강 (위험)
+                elif score <= 30:
+                    return "#2ECC71"   # 초록 (안전)
+                else:
+                    return "#F5A623"   # 주황/노랑 (주의)
+
+            final_color = get_gauge_color(risk_score)
+
+            # 2. 빈 자리 먼저 확보 (여기에 애니메이션으로 덮어씀)
+            gauge_placeholder = st.empty()
+
+            # 3. 0 -> risk_score 까지 서서히 차오르는 애니메이션
+            for i in range(0, risk_score + 1, 2):  # 2씩 증가 (속도 조절용)
+                current_color = get_gauge_color(i)
+                gauge_placeholder.markdown(
+                    f"""
+                    <div style="background-color:#eee; border-radius:10px; width:100%; height:35px; overflow:hidden;">
+                        <div style="
+                            width:{i}%;
+                            background-color:{current_color};
+                            height:100%;
+                            border-radius:10px;
+                            text-align:right;
+                            color:white;
+                            font-weight:bold;
+                            line-height:35px;
+                            padding-right:10px;
+                            transition: width 0.1s ease-in-out;
+                            white-space:nowrap;">
+                            {i}점
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+                time.sleep(0.02)  # 애니메이션 속도 조절 (작을수록 빠름)
+
+            # 4. 마지막에 최종 값으로 한번 더 고정 (혹시 range step 때문에 정확히 안 맞을 경우 대비)
+            gauge_placeholder.markdown(
+                f"""
+                <div style="background-color:#eee; border-radius:10px; width:100%; height:35px; overflow:hidden;">
+                    <div style="
+                        width:{risk_score}%;
+                        background-color:{final_color};
+                        height:100%;
+                        border-radius:10px;
+                        text-align:right;
+                        color:white;
+                        font-weight:bold;
+                        line-height:35px;
+                        padding-right:10px;
+                        white-space:nowrap;">
+                        {risk_score}점
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
             st.markdown(f"**위험도 점수: {risk_score}점 / 100점**")
             
             # 위험도별 경고 문구 출력
