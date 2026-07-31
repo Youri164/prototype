@@ -55,19 +55,23 @@ hide_streamlit_style = """
         background-color: #1C1F26;
         border: 1px solid #2A2E37;
         border-radius: 14px;
-        padding: 14px 16px;
+        padding: 16px 16px 20px 16px;
+        min-height: 100px;
     }
-    /* 앱 내 모든 st.columns를 화면 폭과 무관하게 가로로 강제 */
-    div[data-testid="stHorizontalBlock"] {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        gap: 8px;
+
+    /* 값(value) 부분 - 줄바꿈 허용 + 글씨 작게 + 말줄임(...) 해제 */
+    [data-testid="stMetricValue"] {
+        font-size: 16px !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: unset !important;
+        word-break: break-all !important;
+        line-height: 1.35 !important;
     }
-    div[data-testid="stHorizontalBlock"] > div {
-        width: 100% !important;
-        flex: 1 1 0 !important;
-        min-width: 0 !important;
+
+    /* 라벨("판정 사기 유형", "추출된 링크") 글씨도 살짝 작게 */
+    [data-testid="stMetricLabel"] {
+        font-size: 13px !important;
     }
 
     /* 컬럼 안에 있는 버튼(=예시 버튼)만 블루그레이 톤으로 */
