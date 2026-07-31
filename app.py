@@ -186,5 +186,10 @@ if submitted:
                 st.error(f"🚨 **고위험 경고:** 해당 메시지는 피싱 사기일 확률이 매우 높습니다! 절대 링크를 누르지 마세요.")
             elif risk_score >= 40:
                 st.warning(f"⚠️ **주의 요망:** 의심스러운 패턴이 감별되었습니다. 신중히 확인하세요.")
-erate(reasons, 1):
+            else:
+                st.success(f"✅ **안전:** 특이 사기 패턴이 발견되지 않았습니다.")
+            
+            # 세부 판단 근거 반복문 (오타 없이 정확하게 수정됨)
+            st.markdown("### 📌 세부 위험 판단 근거")
+            for idx, reason in enumerate(reasons, 1):
                 st.markdown(f"{idx}. {reason}")
