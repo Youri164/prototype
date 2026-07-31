@@ -51,6 +51,31 @@ hide_streamlit_style = """
         opacity: 0.95;
     }
 
+    /* 앱 내 모든 st.columns를 화면 폭과 무관하게 가로로 강제 */
+    div[data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 8px;
+    }
+    div[data-testid="stHorizontalBlock"] > div {
+        width: 100% !important;
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+    }
+
+    /* 컬럼 안에 있는 버튼(=예시 버튼)만 블루그레이 톤으로 */
+    div[data-testid="stHorizontalBlock"] button {
+        background: #4A5A6A;
+        color: #F0F0F0;
+        border: none;
+        border-radius: 12px 12px 0 0;
+        padding: 10px 16px;
+        font-weight: 600;
+        width: 100%;
+        transition: opacity 0.15s ease;
+    }
+
     [data-testid="stMetric"] {
         background-color: #1C1F26;
         border: 1px solid #2A2E37;
@@ -72,25 +97,6 @@ hide_streamlit_style = """
     /* 라벨("판정 사기 유형", "추출된 링크") 글씨도 살짝 작게 */
     [data-testid="stMetricLabel"] {
         font-size: 13px !important;
-    }
-
-    /* 컬럼 안에 있는 버튼(=예시 버튼)만 블루그레이 톤으로 */
-    div[data-testid="stHorizontalBlock"] button {
-        background: #4A5A6A;
-        color: #F0F0F0;
-        border: none;
-        border-radius: 12px 12px 0 0;
-        padding: 10px 16px;
-        font-weight: 600;
-        width: 100%;
-        transition: opacity 0.15s ease;
-    }
-    .example-marker + div[data-testid="stHorizontalBlock"] button:hover {
-        opacity: 0.85;
-    }
-    /* 예시 버튼 줄과 바로 아래 입력 카드 사이 간격 제거 (붙어보이게) */
-    .example-marker + div[data-testid="stHorizontalBlock"] {
-        margin-bottom: -18px;
     }
     </style>
 """
