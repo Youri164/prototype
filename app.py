@@ -35,7 +35,8 @@ hide_streamlit_style = """
         color: #FAFAFA;
     }
 
-    .stButton button, .stFormSubmitButton button {
+    /* 기본 버튼 (사기위험분석 실행 버튼) - 빨강 유지 */
+    .stFormSubmitButton button {
         background: linear-gradient(135deg, #FF4B4B, #FF7A5C);
         color: white;
         border: none;
@@ -45,15 +46,9 @@ hide_streamlit_style = """
         width: 100%;
         transition: transform 0.15s ease;
     }
-    .stButton button:hover, .stFormSubmitButton button:hover {
+    .stFormSubmitButton button:hover {
         transform: scale(1.01);
         opacity: 0.95;
-    }
-
-    /* 예시 버튼은 살짝 톤 다운된 스타일로 구분 */
-    div[data-testid="column"] .stButton button {
-        background: #2A2E37;
-        border: 1px solid #3A3F4A;
     }
 
     [data-testid="stMetric"] {
@@ -61,6 +56,25 @@ hide_streamlit_style = """
         border: 1px solid #2A2E37;
         border-radius: 14px;
         padding: 14px 16px;
+    }
+
+    /* --- 예시 선택 버튼 전용 스타일 (박스 없이, 차분한 블루그레이 톤) --- */
+    .example-marker + div[data-testid="stHorizontalBlock"] button {
+        background: #4A5A6A;
+        color: #F0F0F0;
+        border: none;
+        border-radius: 12px 12px 0 0;
+        padding: 10px 16px;
+        font-weight: 600;
+        width: 100%;
+        transition: opacity 0.15s ease;
+    }
+    .example-marker + div[data-testid="stHorizontalBlock"] button:hover {
+        opacity: 0.85;
+    }
+    /* 예시 버튼 줄과 바로 아래 입력 카드 사이 간격 제거 (붙어보이게) */
+    .example-marker + div[data-testid="stHorizontalBlock"] {
+        margin-bottom: -18px;
     }
     </style>
 """
@@ -84,10 +98,11 @@ BANK_DOMAINS = {
 # --- [시연용 예시 문구] ---
 TRUE_EXAMPLE = """KB국민은행 이벤트를 소개합니다.
 100% 당첨은 기본! 쓰면 쓸수록 혜택 Level Up
-https://obank.kbstar.com/quics?page=C041244&scheme=kbbank&pageid=D001352&urlparam=이벤트일련번호:352126"""
+▶ 휴캉스패키지 미션 참여하기
+https://my.kbstar.com/yt3hyXW5"""
 
 FAKE_EXAMPLE = """[국민은행] 대출도 Get, 이벤트로 금도 Get! 2배로 Get Get!!
-[http://kb.star.events.com/37474828](http://kbstar.com/37474828)/dvjvlw"""
+[http://kb.star.events.com/3747482/dvjvlw]"""
 
 # --- [카드 섹션을 만들어주는 헬퍼 함수] ---
 def card_start(title=None):
@@ -113,16 +128,15 @@ def card_end():
 if "msg_input" not in st.session_state:
     st.session_state.msg_input = ""
 
-# --- [시연용 예시 선택 버튼] ---
-card_start("🧪 빠른 시연용 예시 선택")
+# --- [시연용 예시 선택 버튼 - 박스 없이, 입력 카드 위에 붙여서 배치] ---
+st.markdown('<div class="example-marker"></div>', unsafe_allow_html=True)
 ex_col1, ex_col2 = st.columns(2)
 with ex_col1:
-    if st.button("✅ 진짜 예시 (정상)"):
+    if st.button("✅ 예시 (정상)"):
         st.session_state.msg_input = TRUE_EXAMPLE
 with ex_col2:
-    if st.button("🚨 가짜 예시 (피싱)"):
+    if st.button("🚨 예시 (피싱)"):
         st.session_state.msg_input = FAKE_EXAMPLE
-card_end()
 
 
 with st.form("phishing_form"):
@@ -156,7 +170,6 @@ if submitted:
             detected_type = "정상 (안전)"
             reasons = []
 
-            # --- [국내 은행 사칭 및 타이포스쿼팅(변형 도메인) 탐지 로직] ---
             for bank_name, info in BANK_DOMAINS.items():
                 has_keyword = any(kw in text for kw in info["keywords"])
 
@@ -175,7 +188,6 @@ if submitted:
                         detected_type = f"{bank_name} 관련 주의 문자"
                         reasons.append(f"'{bank_name}' 사칭 문구는 있으나 확인된 링크가 없습니다. 공식 번호인지 확인하세요.")
 
-            # --- [추가 룰: 단축 URL 감지] ---
             if any(short in found_url for short in ["bit.ly", "t.co", "is.gd", "url.kr", "Me2.do"]):
                 risk_score += 25
                 reasons.append("🚨 주소를 숨기기 위한 단축 URL(리디렉션 의심)이 포함되어 있습니다.")
@@ -185,11 +197,8 @@ if submitted:
 
             risk_score = min(max(risk_score, 0), 100)
 
-            # ---------------------------------
-
             st.markdown("---")
 
-            # [결과 리포트 카드 - 게이지가 맨 위로!]
             card_start("📊 분석 결과 리포트")
 
             def get_gauge_color(score):
@@ -261,7 +270,6 @@ if submitted:
 
             card_end()
 
-            # [경고 문구 카드]
             card_start()
             if risk_score >= 80:
                 st.error("🚨 **고위험 경고:** 해당 메시지는 피싱 사기일 확률이 매우 높습니다! 절대 링크를 누르지 마세요.")
@@ -271,7 +279,6 @@ if submitted:
                 st.success("✅ **안전:** 특이 사기 패턴이 발견되지 않았습니다.")
             card_end()
 
-            # [세부 근거 카드]
             card_start("📌 세부 위험 판단 근거")
             for idx, reason in enumerate(reasons, 1):
                 st.markdown(f"{idx}. {reason}")
