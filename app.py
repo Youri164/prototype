@@ -57,7 +57,18 @@ hide_streamlit_style = """
         border-radius: 14px;
         padding: 14px 16px;
     }
-
+    /* 예시 버튼 줄은 화면이 좁아도 무조건 가로 유지 */
+    .example-marker + div[data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 8px;
+    }
+    .example-marker + div[data-testid="stHorizontalBlock"] > div {
+        width: 50% !important;
+        flex: 1 1 50% !important;
+        min-width: 0 !important;
+    }
     /* --- 예시 선택 버튼 전용 스타일 (박스 없이, 차분한 블루그레이 톤) --- */
     .example-marker + div[data-testid="stHorizontalBlock"] button {
         background: #4A5A6A;
