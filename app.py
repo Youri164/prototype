@@ -8,19 +8,62 @@ st.set_page_config(
     page_icon="🛡️",
     layout="centered"
 )
-# --- [Streamlit 기본 UI 요소 및 왕관/깃허브 아이콘 숨기기 CSS] ---
+
+# --- [Streamlit 기본 UI 요소 숨기기 + 카드형 다크 디자인 CSS] ---
 hide_streamlit_style = """
     <style>
-    #MainMenu {visibility: hidden;} /* 우측 상단 메뉴 숨기기 */
-    footer {visibility: hidden;} /* 하단 Streamlit 로고 숨기기 */
-    header {visibility: hidden;} /* 상단 헤더 숨기기 */
-    .stDeployButton {display:none;} /* 배포 버튼 숨기기 */
-    /* 우측 상단 GitHub 아이콘, Fork 버튼 영역 전체 숨기기 */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .stDeployButton {display:none;}
     .stAppToolbar {display: none;}
     [data-testid="stHeader"] {display: none;}
+
+    /* 전체 폰트 살짝 부드럽게 */
+    html, body, [class*="css"] {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Pretendard, sans-serif;
+    }
+
+    /* 타이틀 강조 */
+    h1 {
+        font-weight: 800 !important;
+        letter-spacing: -0.5px;
+    }
+
+    /* 입력창(textarea) 카드처럼 */
+    .stTextArea textarea {
+        background-color: #1C1F26;
+        border: 1px solid #2A2E37;
+        border-radius: 12px;
+        color: #FAFAFA;
+    }
+
+    /* 버튼 스타일 */
+    .stButton button, .stFormSubmitButton button {
+        background: linear-gradient(135deg, #FF4B4B, #FF7A5C);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 10px 20px;
+        font-weight: 700;
+        width: 100%;
+        transition: transform 0.15s ease;
+    }
+    .stButton button:hover, .stFormSubmitButton button:hover {
+        transform: scale(1.01);
+        opacity: 0.95;
+    }
+
+    /* metric 카드 느낌 */
+    [data-testid="stMetric"] {
+        background-color: #1C1F26;
+        border: 1px solid #2A2E37;
+        border-radius: 14px;
+        padding: 14px 16px;
+    }
     </style>
 """
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)\
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 st.title("🛡️ AI 기반 메시지 피싱 탐지 시스템")
 st.markdown("수신한 문자 메시지 전체(본문+링크)를 한 번에 붙여넣어 사기 위험도를 분석하세요.")
@@ -37,56 +80,71 @@ BANK_DOMAINS = {
     "기업은행": {"official": "ibk.co.kr", "keywords": ["기업은행", "IBK"]}
 }
 
+# --- [카드 섹션을 만들어주는 헬퍼 함수] ---
+def card_start(title=None):
+    html = """
+    <div style="
+        background-color: #1C1F26;
+        border: 1px solid #2A2E37;
+        border-radius: 16px;
+        padding: 22px 22px 8px 22px;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+        margin-bottom: 18px;
+    ">
+    """
+    if title:
+        html += f'<div style="font-size:18px; font-weight:700; color:#FAFAFA; margin-bottom:12px;">{title}</div>'
+    st.markdown(html, unsafe_allow_html=True)
+
+def card_end():
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
 with st.form("phishing_form"):
-    st.subheader("📥 분석 대상 입력")
-    
-    # 2. 링크를 따로 안 받고 한 번에 복-붙할 수 있는 통합 입력창
+    card_start("📥 분석 대상 입력")
+
     full_text_input = st.text_area(
-        "문자 메시지 전체 내용 (본문 + 링크 포함)", 
+        "문자 메시지 전체 내용 (본문 + 링크 포함)",
         height=150,
-        placeholder="[국민은행] 긴급 대출 안내. 아래 링크를 확인하세요.\nhttps://kb-secure-login.com/event"
+        placeholder="[국민은행] 긴급 대출 안내. 아래 링크를 확인하세요.\nhttps://kb-secure-login.com/event",
+        label_visibility="collapsed"
     )
-    
+
     submitted = st.form_submit_button("🔍 사기 위험 분석 실행")
+    card_end()
 
 if submitted:
     if not full_text_input.strip():
         st.warning("⚠️ 분석할 메시지 내용을 입력해주세요.")
     else:
         with st.spinner("🔄 텍스트 내 URL 추출 및 피싱 패턴 정밀 분석 중..."):
-            
+
             text = full_text_input
-            
+
             # --- [텍스트 내부에서 URL 자동 추출 로직] ---
             url_pattern = r'https?://[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:/[^\s]*)?'
             extracted_urls = re.findall(url_pattern, text)
             found_url = extracted_urls[0] if extracted_urls else ""
-            
+
             risk_score = 10
             detected_type = "정상 (안전)"
             reasons = []
 
             # --- [국내 은행 사칭 및 타이포스쿼팅(변형 도메인) 탐지 로직] ---
-            bank_matched = False
             for bank_name, info in BANK_DOMAINS.items():
-                # 문자에 기관명이 포함되어 있는지 확인
                 has_keyword = any(kw in text for kw in info["keywords"])
-                
+
                 if has_keyword:
-                    bank_matched = True
-                    official_domain = info["official"] # 예: wooribank.com
-                    
+                    official_domain = info["official"]
+
                     if found_url:
-                        # 공식 도메인이 URL에 포함되어 있는지 확인
                         if official_domain in found_url:
                             reasons.append(f"'{bank_name}' 관련 메시지이며, 공식 도메인({official_domain})이 확인되었습니다.")
                         else:
-                            # 텍스트에는 은행이 있는데 링크가 공식 도메인과 다름 (타이포스쿼팅 또는 가짜 링크 의심)
                             risk_score = 90
                             detected_type = f"{bank_name} 사칭 피싱 (고위험)"
                             reasons.append(f"⚠️ 본문에 '{bank_name}'이 언급되었으나, 연결된 링크 주소가 공식 도메인({official_domain})과 일치하지 않거나 변형(타이포스쿼팅)되었습니다.")
                     else:
-                        # 기관명은 있는데 링크가 아예 없는 경우
                         risk_score = 50
                         detected_type = f"{bank_name} 관련 주의 문자"
                         reasons.append(f"'{bank_name}' 사칭 문구는 있으나 확인된 링크가 없습니다. 공식 번호인지 확인하세요.")
@@ -96,47 +154,44 @@ if submitted:
                 risk_score += 25
                 reasons.append("🚨 주소를 숨기기 위한 단축 URL(리디렉션 의심)이 포함되어 있습니다.")
 
-            # 기본 안전 판정
             if not reasons:
                 reasons.append("특이 사기 패턴 및 의심스러운 외부 링크가 발견되지 않았습니다.")
-            
-            risk_score = min(max(risk_score, 0), 100) # 점수는 0~100 사이로 고정
-            
+
+            risk_score = min(max(risk_score, 0), 100)
+
             # ---------------------------------
-            
+
             st.markdown("---")
-            st.subheader("📊 분석 결과 리포트")
-            
+
+            # [결과 요약 카드]
+            card_start("📊 분석 결과 리포트")
             col1, col2 = st.columns(2)
             with col1:
                 st.metric(label="판정 사기 유형", value=detected_type)
             with col2:
                 st.metric(label="추출된 링크", value=found_url if found_url else "없음")
+            st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+            card_end()
 
-            # ... risk_score 계산 이후 ...
+            # [게이지 카드]
+            card_start("🌡️ 최종 위험도 게이지")
 
-            st.markdown("### 🌡️ 최종 위험도 게이지")
-
-            # 1. 점수 구간별 색상 결정
             def get_gauge_color(score):
                 if score >= 80:
-                    return "#FF4B4B"   # 빨강 (위험)
+                    return "#FF4B4B"
                 elif score <= 30:
-                    return "#2ECC71"   # 초록 (안전)
+                    return "#2ECC71"
                 else:
-                    return "#F5A623"   # 주황/노랑 (주의)
+                    return "#F5A623"
 
             final_color = get_gauge_color(risk_score)
-
-            # 2. 빈 자리 먼저 확보 (여기에 애니메이션으로 덮어씀)
             gauge_placeholder = st.empty()
 
-            # 3. 0 -> risk_score 까지 서서히 차오르는 애니메이션
-            for i in range(0, risk_score + 1, 2):  # 2씩 증가 (속도 조절용)
+            for i in range(0, risk_score + 1, 2):
                 current_color = get_gauge_color(i)
                 gauge_placeholder.markdown(
                     f"""
-                    <div style="background-color:#eee; border-radius:10px; width:100%; height:35px; overflow:hidden;">
+                    <div style="background-color:#0E1117; border-radius:10px; width:100%; height:35px; overflow:hidden;">
                         <div style="
                             width:{i}%;
                             background-color:{current_color};
@@ -155,12 +210,11 @@ if submitted:
                     """,
                     unsafe_allow_html=True
                 )
-                time.sleep(0.02)  # 애니메이션 속도 조절 (작을수록 빠름)
+                time.sleep(0.02)
 
-            # 4. 마지막에 최종 값으로 한번 더 고정 (혹시 range step 때문에 정확히 안 맞을 경우 대비)
             gauge_placeholder.markdown(
                 f"""
-                <div style="background-color:#eee; border-radius:10px; width:100%; height:35px; overflow:hidden;">
+                <div style="background-color:#0E1117; border-radius:10px; width:100%; height:35px; overflow:hidden;">
                     <div style="
                         width:{risk_score}%;
                         background-color:{final_color};
@@ -180,16 +234,20 @@ if submitted:
             )
 
             st.markdown(f"**위험도 점수: {risk_score}점 / 100점**")
-            
-            # 위험도별 경고 문구 출력
+            card_end()
+
+            # [경고 문구 카드]
+            card_start()
             if risk_score >= 80:
-                st.error(f"🚨 **고위험 경고:** 해당 메시지는 피싱 사기일 확률이 매우 높습니다! 절대 링크를 누르지 마세요.")
+                st.error("🚨 **고위험 경고:** 해당 메시지는 피싱 사기일 확률이 매우 높습니다! 절대 링크를 누르지 마세요.")
             elif risk_score >= 40:
-                st.warning(f"⚠️ **주의 요망:** 의심스러운 패턴이 감별되었습니다. 신중히 확인하세요.")
+                st.warning("⚠️ **주의 요망:** 의심스러운 패턴이 감별되었습니다. 신중히 확인하세요.")
             else:
-                st.success(f"✅ **안전:** 특이 사기 패턴이 발견되지 않았습니다.")
-            
-            # 세부 판단 근거 반복문 (오타 없이 정확하게 수정됨)
-            st.markdown("### 📌 세부 위험 판단 근거")
+                st.success("✅ **안전:** 특이 사기 패턴이 발견되지 않았습니다.")
+            card_end()
+
+            # [세부 근거 카드]
+            card_start("📌 세부 위험 판단 근거")
             for idx, reason in enumerate(reasons, 1):
                 st.markdown(f"{idx}. {reason}")
+            card_end()
