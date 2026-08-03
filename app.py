@@ -1,6 +1,7 @@
 import time
 import streamlit as st
 import re
+import streamlit.components.v1 as components   # ← 이 줄 추가
 
 # 페이지 기본 설정
 st.set_page_config(
@@ -173,92 +174,102 @@ if submitted:
     if not full_text_input.strip():
         st.warning("⚠️ 분석할 메시지 내용을 입력해주세요.")
     else:
-        with st.spinner("🔄 텍스트 내 URL 추출 및 피싱 패턴 정밀 분석 중..."):
+        # --- [1. 큼직한 로딩 카드로 "분석 중" 느낌 살리기] ---
+        loading_placeholder = st.empty()
+        loading_placeholder.markdown(
+            """
+            <div style="
+                background-color:#1C1F26;
+                border:1px solid #2A2E37;
+                border-radius:16px;
+                padding:44px 20px;
+                text-align:center;
+                margin-bottom:18px;
+            ">
+                <div style="font-size:38px; margin-bottom:10px;">🔍</div>
+                <div style="font-size:18px; font-weight:700; color:#FAFAFA;">
+                    메시지 분석 중<span class="dot-anim">...</span>
+                </div>
+                <div style="font-size:13px; color:#9AA4B2; margin-top:8px;">
+                    URL 추출 및 피싱 패턴을 검사하고 있습니다
+                </div>
+            </div>
+            <style>
+            @keyframes blinkDots {
+                0%, 20% { opacity: 0; }
+                50% { opacity: 1; }
+                100% { opacity: 0; }
+            }
+            .dot-anim { animation: blinkDots 1.2s infinite; }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+        time.sleep(1.4)   # 실제 분석하는 느낌을 주기 위한 인위적 딜레이
+        loading_placeholder.empty()
 
-            text = full_text_input
+        text = full_text_input
 
-            # --- [텍스트 내부에서 URL 자동 추출 로직] ---
-            url_pattern = r'https?://[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:/[^\s]*)?'
-            extracted_urls = re.findall(url_pattern, text)
-            found_url = extracted_urls[0] if extracted_urls else ""
+        # --- [텍스트 내부에서 URL 자동 추출 로직] ---
+        url_pattern = r'https?://[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:/[^\s]*)?'
+        extracted_urls = re.findall(url_pattern, text)
+        found_url = extracted_urls[0] if extracted_urls else ""
 
-            risk_score = 10
-            detected_type = "정상 (안전)"
-            reasons = []
+        risk_score = 10
+        detected_type = "정상 (안전)"
+        reasons = []
 
-            for bank_name, info in BANK_DOMAINS.items():
-                has_keyword = any(kw in text for kw in info["keywords"])
-
-                if has_keyword:
-                    official_domain = info["official"]
-
-                    if found_url:
-                        if official_domain in found_url:
-                            reasons.append(f"'{bank_name}' 관련 메시지이며, 공식 도메인({official_domain})이 확인되었습니다.")
-                        else:
-                            risk_score = 90
-                            detected_type = f"{bank_name} 사칭 피싱 (고위험)"
-                            reasons.append(f"⚠️ 본문에 '{bank_name}'이 언급되었으나, 연결된 링크 주소가 공식 도메인({official_domain})과 일치하지 않거나 변형(타이포스쿼팅)되었습니다.")
+        for bank_name, info in BANK_DOMAINS.items():
+            has_keyword = any(kw in text for kw in info["keywords"])
+            if has_keyword:
+                official_domain = info["official"]
+                if found_url:
+                    if official_domain in found_url:
+                        reasons.append(f"'{bank_name}' 관련 메시지이며, 공식 도메인({official_domain})이 확인되었습니다.")
                     else:
-                        risk_score = 50
-                        detected_type = f"{bank_name} 관련 주의 문자"
-                        reasons.append(f"'{bank_name}' 사칭 문구는 있으나 확인된 링크가 없습니다. 공식 번호인지 확인하세요.")
-
-            if any(short in found_url for short in ["bit.ly", "t.co", "is.gd", "url.kr", "Me2.do"]):
-                risk_score += 25
-                reasons.append("🚨 주소를 숨기기 위한 단축 URL(리디렉션 의심)이 포함되어 있습니다.")
-
-            if not reasons:
-                reasons.append("특이 사기 패턴 및 의심스러운 외부 링크가 발견되지 않았습니다.")
-
-            risk_score = min(max(risk_score, 0), 100)
-
-            st.markdown("---")
-
-            card_start("📊 분석 결과 리포트")
-
-            def get_gauge_color(score):
-                if score >= 80:
-                    return "#FF4B4B"
-                elif score <= 30:
-                    return "#2ECC71"
+                        risk_score = 90
+                        detected_type = f"{bank_name} 사칭 피싱 (고위험)"
+                        reasons.append(f"⚠️ 본문에 '{bank_name}'이 언급되었으나, 연결된 링크 주소가 공식 도메인({official_domain})과 일치하지 않거나 변형(타이포스쿼팅)되었습니다.")
                 else:
-                    return "#F5A623"
+                    risk_score = 50
+                    detected_type = f"{bank_name} 관련 주의 문자"
+                    reasons.append(f"'{bank_name}' 사칭 문구는 있으나 확인된 링크가 없습니다. 공식 번호인지 확인하세요.")
 
-            final_color = get_gauge_color(risk_score)
-            gauge_placeholder = st.empty()
+        if any(short in found_url for short in ["bit.ly", "t.co", "is.gd", "url.kr", "Me2.do"]):
+            risk_score += 25
+            reasons.append("🚨 주소를 숨기기 위한 단축 URL(리디렉션 의심)이 포함되어 있습니다.")
 
-            for i in range(0, risk_score + 1, 2):
-                current_color = get_gauge_color(i)
-                gauge_placeholder.markdown(
-                    f"""
-                    <div style="background-color:#0E1117; border-radius:10px; width:100%; height:35px; overflow:hidden;">
-                        <div style="
-                            width:{i}%;
-                            background-color:{current_color};
-                            height:100%;
-                            border-radius:10px;
-                            text-align:right;
-                            color:white;
-                            font-weight:bold;
-                            line-height:35px;
-                            padding-right:10px;
-                            transition: width 0.1s ease-in-out;
-                            white-space:nowrap;">
-                            {i}점
-                        </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-                time.sleep(0.02)
+        if not reasons:
+            reasons.append("특이 사기 패턴 및 의심스러운 외부 링크가 발견되지 않았습니다.")
 
+        risk_score = min(max(risk_score, 0), 100)
+
+        st.markdown("---")
+
+        # --- [2. 자동 스크롤 목표 지점(앵커) 표시] ---
+        st.markdown('<div id="result-anchor"></div>', unsafe_allow_html=True)
+
+        card_start("📊 분석 결과 리포트")
+
+        def get_gauge_color(score):
+            if score >= 80:
+                return "#FF4B4B"
+            elif score <= 30:
+                return "#2ECC71"
+            else:
+                return "#F5A623"
+
+        final_color = get_gauge_color(risk_score)
+        gauge_placeholder = st.empty()
+
+        for i in range(0, risk_score + 1, 2):
+            current_color = get_gauge_color(i)
             gauge_placeholder.markdown(
                 f"""
                 <div style="background-color:#0E1117; border-radius:10px; width:100%; height:35px; overflow:hidden;">
                     <div style="
-                        width:{risk_score}%;
-                        background-color:{final_color};
+                        width:{i}%;
+                        background-color:{current_color};
                         height:100%;
                         border-radius:10px;
                         text-align:right;
@@ -266,25 +277,48 @@ if submitted:
                         font-weight:bold;
                         line-height:35px;
                         padding-right:10px;
+                        transition: width 0.1s ease-in-out;
                         white-space:nowrap;">
-                        {risk_score}점
+                        {i}점
                     </div>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
+            time.sleep(0.02)
 
-            st.markdown(f"**위험도 점수: {risk_score}점 / 100점**")
+        gauge_placeholder.markdown(
+            f"""
+            <div style="background-color:#0E1117; border-radius:10px; width:100%; height:35px; overflow:hidden;">
+                <div style="
+                    width:{risk_score}%;
+                    background-color:{final_color};
+                    height:100%;
+                    border-radius:10px;
+                    text-align:right;
+                    color:white;
+                    font-weight:bold;
+                    line-height:35px;
+                    padding-right:10px;
+                    white-space:nowrap;">
+                    {risk_score}점
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-            st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
+        st.markdown(f"**위험도 점수: {risk_score}점 / 100점**")
+        st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
 
-            with st.container(key="metric_row"):
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric(label="판정 사기 유형", value=detected_type)
-                with col2:
-                    st.metric(label="추출된 링크", value=found_url if found_url else "없음")
-            card_end()
+        with st.container(key="metric_row"):
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric(label="판정 사기 유형", value=detected_type)
+            with col2:
+                st.metric(label="추출된 링크", value=found_url if found_url else "없음")
+
+        card_end()
 
         card_start()
         if risk_score >= 80:
@@ -299,3 +333,16 @@ if submitted:
         for idx, reason in enumerate(reasons, 1):
             st.markdown(f"{idx}. {reason}")
         card_end()
+
+        # --- [3. 결과 렌더링이 끝난 직후, 앵커 지점으로 자동 스크롤] ---
+        components.html(
+            """
+            <script>
+                var el = window.parent.document.getElementById('result-anchor');
+                if (el) {
+                    el.scrollIntoView({behavior: 'smooth', block: 'start'});
+                }
+            </script>
+            """,
+            height=0,
+        )
