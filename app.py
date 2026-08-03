@@ -51,21 +51,19 @@ hide_streamlit_style = """
         opacity: 0.95;
     }
 
-    /* 앱 내 모든 st.columns를 화면 폭과 무관하게 가로로 강제 */
-    div[data-testid="stHorizontalBlock"] {
+   /* --- 예시 버튼 줄: 무조건 가로 유지 --- */
+    .st-key-example_row div[data-testid="stHorizontalBlock"] {
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
         gap: 8px;
     }
-    div[data-testid="stHorizontalBlock"] > div {
+    .st-key-example_row div[data-testid="stHorizontalBlock"] > div {
         width: 100% !important;
         flex: 1 1 0 !important;
         min-width: 0 !important;
     }
-
-    /* 컬럼 안에 있는 버튼(=예시 버튼)만 블루그레이 톤으로 */
-    div[data-testid="stHorizontalBlock"] button {
+    .st-key-example_row button {
         background: #4A5A6A;
         color: #F0F0F0;
         border: none;
@@ -76,12 +74,9 @@ hide_streamlit_style = """
         transition: opacity 0.15s ease;
     }
 
-    [data-testid="stMetric"] {
-        background-color: #1C1F26;
-        border: 1px solid #2A2E37;
-        border-radius: 14px;
-        padding: 16px 16px 20px 16px;
-        min-height: 100px;
+    /* --- metric 줄: 얘는 화면 좁으면 자유롭게 줄바꿈 허용 (강제 안 함) --- */
+    .st-key-metric_row div[data-testid="stHorizontalBlock"] {
+        gap: 8px;
     }
 
     /* 값(value) 부분 - 줄바꿈 허용 + 글씨 작게 + 말줄임(...) 해제 */
@@ -150,15 +145,14 @@ def card_end():
 if "msg_input" not in st.session_state:
     st.session_state.msg_input = ""
 
-# --- [시연용 예시 선택 버튼 - 박스 없이, 입력 카드 위에 붙여서 배치] ---
-st.markdown('<div class="example-marker"></div>', unsafe_allow_html=True)
-ex_col1, ex_col2 = st.columns(2)
-with ex_col1:
-    if st.button("✅ 예시1 (정상)"):
-        st.session_state.msg_input = TRUE_EXAMPLE
-with ex_col2:
-    if st.button("🚨 예시2 (피싱)"):
-        st.session_state.msg_input = FAKE_EXAMPLE
+with st.container(key="example_row"):
+    ex_col1, ex_col2 = st.columns(2)
+    with ex_col1:
+        if st.button("✅ 진짜 예시 (정상)"):
+            st.session_state.msg_input = TRUE_EXAMPLE
+    with ex_col2:
+        if st.button("🚨 가짜 예시 (피싱)"):
+            st.session_state.msg_input = FAKE_EXAMPLE
 
 
 with st.form("phishing_form"):
@@ -284,24 +278,24 @@ if submitted:
 
             st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
 
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric(label="판정 사기 유형", value=detected_type)
-            with col2:
-                st.metric(label="추출된 링크", value=found_url if found_url else "없음")
-
+            with st.container(key="metric_row"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric(label="판정 사기 유형", value=detected_type)
+                with col2:
+                    st.metric(label="추출된 링크", value=found_url if found_url else "없음")
             card_end()
 
-            card_start()
-            if risk_score >= 80:
-                st.error("🚨 **고위험 경고:** 해당 메시지는 피싱 사기일 확률이 매우 높습니다! 절대 링크를 누르지 마세요.")
-            elif risk_score >= 40:
-                st.warning("⚠️ **주의 요망:** 의심스러운 패턴이 감별되었습니다. 신중히 확인하세요.")
-            else:
-                st.success("✅ **안전:** 특이 사기 패턴이 발견되지 않았습니다.")
-            card_end()
+        card_start()
+        if risk_score >= 80:
+            st.error("🚨 **고위험 경고:** 해당 메시지는 피싱 사기일 확률이 매우 높습니다! 절대 링크를 누르지 마세요.")
+        elif risk_score >= 40:
+            st.warning("⚠️ **주의 요망:** 의심스러운 패턴이 감별되었습니다. 신중히 확인하세요.")
+        else:
+            st.success("✅ **안전:** 특이 사기 패턴이 발견되지 않았습니다.")
+        card_end()
 
-            card_start("📌 세부 위험 판단 근거")
-            for idx, reason in enumerate(reasons, 1):
-                st.markdown(f"{idx}. {reason}")
-            card_end()
+        card_start("📌 세부 위험 판단 근거")
+        for idx, reason in enumerate(reasons, 1):
+            st.markdown(f"{idx}. {reason}")
+        card_end()
