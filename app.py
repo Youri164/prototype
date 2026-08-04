@@ -174,43 +174,81 @@ if submitted:
     if not full_text_input.strip():
         st.warning("⚠️ 분석할 메시지 내용을 입력해주세요.")
     else:
-        # --- [1. 큼직한 로딩 카드로 "분석 중" 느낌 살리기] ---
-        loading_placeholder = st.empty()
-        loading_placeholder.markdown(
+        st.markdown("---")
+
+        # --- [1. 결과/로딩이 나올 위치에 앵커 먼저 표시] ---
+        st.markdown('<div id="result-anchor"></div>', unsafe_allow_html=True)
+
+        # --- [2. 로딩 화면이 그려지기 전에 먼저 그 자리로 스크롤] ---
+        components.html(
             """
-            <div style="
-                background-color:#1C1F26;
-                border:1px solid #2A2E37;
-                border-radius:16px;
-                padding:44px 20px;
-                text-align:center;
-                margin-bottom:18px;
-            ">
-                <div style="font-size:38px; margin-bottom:10px;">🔍</div>
-                <div style="font-size:18px; font-weight:700; color:#FAFAFA;">
-                    메시지 분석 중<span class="dot-anim">...</span>
-                </div>
-                <div style="font-size:13px; color:#9AA4B2; margin-top:8px;">
-                    URL 추출 및 피싱 패턴을 검사하고 있습니다
-                </div>
-            </div>
-            <style>
-            @keyframes blinkDots {
-                0%, 20% { opacity: 0; }
-                50% { opacity: 1; }
-                100% { opacity: 0; }
-            }
-            .dot-anim { animation: blinkDots 1.2s infinite; }
-            </style>
+            <script>
+                var el = window.parent.document.getElementById('result-anchor');
+                if (el) {
+                    el.scrollIntoView({behavior: 'smooth', block: 'start'});
+                }
+            </script>
             """,
-            unsafe_allow_html=True
+            height=0,
         )
-        time.sleep(1.4)   # 실제 분석하는 느낌을 주기 위한 인위적 딜레이
+
+        # --- [3. 로딩 카드 + 자체 게이지 애니메이션] ---
+        loading_placeholder = st.empty()
+
+        loading_steps = [
+            (20, "문자 내용을 확인하고 있습니다"),
+            (45, "URL을 추출하고 있습니다"),
+            (70, "공식 도메인과 대조하고 있습니다"),
+            (100, "위험 패턴을 종합 분석하고 있습니다"),
+        ]
+
+        prev = 0
+        for target, msg in loading_steps:
+            for i in range(prev, target + 1, 4):
+                loading_placeholder.markdown(
+                    f"""
+                    <div style="
+                        background-color:#1C1F26;
+                        border:1px solid #2A2E37;
+                        border-radius:16px;
+                        padding:28px 24px;
+                        margin-bottom:18px;
+                    ">
+                        <div style="font-size:16px; font-weight:700; color:#FAFAFA; margin-bottom:14px;">
+                            🔍 분석 중<span class="dot-anim">...</span>
+                        </div>
+                        <div style="background-color:#0E1117; border-radius:10px; width:100%; height:14px; overflow:hidden;">
+                            <div style="
+                                width:{i}%;
+                                background: linear-gradient(90deg, #4A5A6A, #6C8FB5);
+                                height:100%;
+                                border-radius:10px;
+                                transition: width 0.1s ease-in-out;">
+                            </div>
+                        </div>
+                        <div style="font-size:12px; color:#9AA4B2; margin-top:10px;">
+                            {msg} ({i}%)
+                        </div>
+                    </div>
+                    <style>
+                    @keyframes blinkDots {{
+                        0%, 20% {{ opacity: 0; }}
+                        50% {{ opacity: 1; }}
+                        100% {{ opacity: 0; }}
+                    }}
+                    .dot-anim {{ animation: blinkDots 1.2s infinite; }}
+                    </style>
+                    """,
+                    unsafe_allow_html=True
+                )
+                time.sleep(0.03)
+            prev = target
+
         loading_placeholder.empty()
 
+        # --- [4. 실제 분석 로직] ---
         text = full_text_input
 
-        # --- [텍스트 내부에서 URL 자동 추출 로직] ---
         url_pattern = r'https?://[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:/[^\s]*)?'
         extracted_urls = re.findall(url_pattern, text)
         found_url = extracted_urls[0] if extracted_urls else ""
@@ -244,11 +282,7 @@ if submitted:
 
         risk_score = min(max(risk_score, 0), 100)
 
-        st.markdown("---")
-
-        # --- [2. 자동 스크롤 목표 지점(앵커) 표시] ---
-        st.markdown('<div id="result-anchor"></div>', unsafe_allow_html=True)
-
+        # --- [5. 실제 결과 렌더링] ---
         card_start("📊 분석 결과 리포트")
 
         def get_gauge_color(score):
@@ -333,16 +367,3 @@ if submitted:
         for idx, reason in enumerate(reasons, 1):
             st.markdown(f"{idx}. {reason}")
         card_end()
-
-        # --- [3. 결과 렌더링이 끝난 직후, 앵커 지점으로 자동 스크롤] ---
-        components.html(
-            """
-            <script>
-                var el = window.parent.document.getElementById('result-anchor');
-                if (el) {
-                    el.scrollIntoView({behavior: 'smooth', block: 'start'});
-                }
-            </script>
-            """,
-            height=0,
-        )
