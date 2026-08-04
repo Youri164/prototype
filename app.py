@@ -192,19 +192,24 @@ if submitted:
             height=0,
         )
 
-        # --- [3. 로딩 카드 + 자체 게이지 애니메이션] ---
+# --- [3. 로딩 카드 + 단계별 게이지 애니메이션] ---
         loading_placeholder = st.empty()
 
         loading_steps = [
-            (20, "문자 내용을 확인하고 있습니다"),
-            (45, "URL을 추출하고 있습니다"),
-            (70, "공식 도메인과 대조하고 있습니다"),
-            (100, "위험 패턴을 종합 분석하고 있습니다"),
+            (25, "🔗 링크 위험 정도 분석 진행 중..."),
+            (50, "🧠 문맥 위험 정도 분석 진행 중..."),
+            (80, "📊 최종 위험도 산출 및 교차 검증 중..."),
+            (100, "📝 위험 판단 근거 작성 중..."),
         ]
+
+        STAGE_DURATION = 1.5  # 각 단계마다 머무르는 시간(초)
 
         prev = 0
         for target, msg in loading_steps:
-            for i in range(prev, target + 1, 4):
+            steps_in_stage = max(target - prev, 1)
+            sleep_per_step = STAGE_DURATION / steps_in_stage
+
+            for i in range(prev, target + 1):
                 loading_placeholder.markdown(
                     f"""
                     <div style="
@@ -215,7 +220,7 @@ if submitted:
                         margin-bottom:18px;
                     ">
                         <div style="font-size:16px; font-weight:700; color:#FAFAFA; margin-bottom:14px;">
-                            🔍 분석 중<span class="dot-anim">...</span>
+                            {msg}
                         </div>
                         <div style="background-color:#0E1117; border-radius:10px; width:100%; height:14px; overflow:hidden;">
                             <div style="
@@ -227,21 +232,13 @@ if submitted:
                             </div>
                         </div>
                         <div style="font-size:12px; color:#9AA4B2; margin-top:10px;">
-                            {msg} ({i}%)
+                            진행률 {i}%
                         </div>
                     </div>
-                    <style>
-                    @keyframes blinkDots {{
-                        0%, 20% {{ opacity: 0; }}
-                        50% {{ opacity: 1; }}
-                        100% {{ opacity: 0; }}
-                    }}
-                    .dot-anim {{ animation: blinkDots 1.2s infinite; }}
-                    </style>
                     """,
                     unsafe_allow_html=True
                 )
-                time.sleep(0.03)
+                time.sleep(sleep_per_step)
             prev = target
 
         loading_placeholder.empty()
@@ -249,7 +246,8 @@ if submitted:
         # --- [4. 실제 분석 로직] ---
         text = full_text_input
 
-        url_pattern = r'https?://[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:/[^\s]*)?'
+        # 공백이나 닫는 괄호(], ), }, 기호 전까지만 URL로 인식하도록 다듬은 정규표현식
+        url_pattern = r'https?://[^\s\]\)\}>"\']+|www\.[^\s\]\)\}>"\']+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:/[^\s\]\)\}>"\']*)?'
         extracted_urls = re.findall(url_pattern, text)
         found_url = extracted_urls[0] if extracted_urls else ""
 
