@@ -216,10 +216,10 @@ if submitted:
                         background-color:#1C1F26;
                         border:1px solid #2A2E37;
                         border-radius:16px;
-                        padding:28px 24px;
+                        padding:48px 24px;
                         margin-bottom:18px;
                     ">
-                        <div style="font-size:16px; font-weight:700; color:#FAFAFA; margin-bottom:14px;">
+                        <div style="font-size:19px; font-weight:700; color:#FAFAFA; margin-bottom:14px;">
                             {msg}
                         </div>
                         <div style="background-color:#0E1117; border-radius:10px; width:100%; height:14px; overflow:hidden;">
