@@ -343,6 +343,15 @@ if submitted:
         )
 
         st.markdown(f"**위험도 점수: {risk_score}점 / 100점**")
+
+        # 경고 문구를 여기(메트릭보다 먼저)로 이동
+        if risk_score >= 80:
+            st.error("🚨 **고위험 경고:** 해당 메시지는 피싱 사기일 확률이 매우 높습니다! 절대 링크를 누르지 마세요.")
+        elif risk_score >= 40:
+            st.warning("⚠️ **주의 요망:** 의심스러운 패턴이 감별되었습니다. 신중히 확인하세요.")
+        else:
+            st.success("✅ **안전:** 특이 사기 패턴이 발견되지 않았습니다.")
+
         st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
 
         with st.container(key="metric_row"):
@@ -354,16 +363,22 @@ if submitted:
 
         card_end()
 
-        card_start()
-        if risk_score >= 80:
-            st.error("🚨 **고위험 경고:** 해당 메시지는 피싱 사기일 확률이 매우 높습니다! 절대 링크를 누르지 마세요.")
-        elif risk_score >= 40:
-            st.warning("⚠️ **주의 요망:** 의심스러운 패턴이 감별되었습니다. 신중히 확인하세요.")
-        else:
-            st.success("✅ **안전:** 특이 사기 패턴이 발견되지 않았습니다.")
-        card_end()
-
         card_start("📌 세부 위험 판단 근거")
         for idx, reason in enumerate(reasons, 1):
             st.markdown(f"{idx}. {reason}")
         card_end()
+        # --- 여기부터 위에서 추가한 두 번째 앵커 + 스크롤 스크립트 ---
+        st.markdown('<div id="result-bottom-anchor"></div>', unsafe_allow_html=True)
+        components.html(
+            """
+            <script>
+                setTimeout(function() {
+                    var el = window.parent.document.getElementById('result-bottom-anchor');
+                    if (el) {
+                        el.scrollIntoView({behavior: 'smooth', block: 'end'});
+                    }
+                }, 150);
+            </script>
+            """,
+            height=0,
+        )
