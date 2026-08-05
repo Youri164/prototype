@@ -196,10 +196,10 @@ if submitted:
         loading_placeholder = st.empty()
 
         loading_steps = [
-            (25, "🔗 링크 위험 정도 분석 진행 중..."),
-            (50, "🧠 문맥 위험 정도 분석 진행 중..."),
-            (80, "📊 최종 위험도 산출 및 교차 검증 중..."),
-            (100, "📝 위험 판단 근거 작성 중..."),
+            (25, "🔗 링크 위험값 산출 중... (도메인·경로 패턴 대조)"),
+            (50, "🧠 문맥 위험값 산출 중... (주체-행위 결합도 분석)"),
+            (80, "📊 최종 위험도 산출 및 유형 일치 보정 중..."),
+            (100, "📝 위험 판단 근거 우선순위 정렬 중..."),
         ]
 
         STAGE_DURATION = 1.5  # 각 단계마다 머무르는 시간(초)
@@ -274,11 +274,55 @@ if submitted:
         if any(short in found_url for short in ["bit.ly", "t.co", "is.gd", "url.kr", "Me2.do"]):
             risk_score += 25
             reasons.append("🚨 주소를 숨기기 위한 단축 URL(리디렉션 의심)이 포함되어 있습니다.")
+# --- [추가 룰: 단축 URL 감지] ---
+        if any(short in found_url for short in ["bit.ly", "t.co", "is.gd", "url.kr", "Me2.do"]):
+            risk_score += 25
+            reasons.append("🚨 주소를 숨기기 위한 단축 URL(리디렉션 의심)이 포함되어 있습니다.")
+
+        # --- [추가 룰 A: 긴급성/과장 마케팅 문구 감지] ---
+        urgency_keywords = ["지금 바로", "즉시", "긴급", "선착순", "한정", "100% 당첨", "Get Get", "무료 증정"]
+        matched_urgency = [kw for kw in urgency_keywords if kw in text]
+        if matched_urgency:
+            risk_score += 10
+            reasons.append(f"⚠️ 긴급성을 조성하거나 과도하게 유도하는 마케팅성 문구('{matched_urgency[0]}' 등)가 포함되어 있습니다.")
+        # --- [문맥 위험값(C_g) 근사 계산: 주체-행위 토큰 거리 기반] ---
+        action_keywords = ["링크", "클릭", "확인", "접속", "누르", "터치"]
+        words = re.split(r'\s+', text)
+
+        subject_positions = [i for i, w in enumerate(words) if any(kw in w for kw in sum([info["keywords"] for info in BANK_DOMAINS.values()], []))]
+        action_positions = [i for i, w in enumerate(words) if any(kw in w for kw in action_keywords)]
+
+        if subject_positions and action_positions:
+            min_distance = min(abs(s - a) for s in subject_positions for a in action_positions)
+            if min_distance <= 3:
+                risk_score += 15
+                reasons.append(f"🧠 발신 주체와 행위 요구 표현 사이의 문맥 거리가 매우 가깝습니다(토큰 거리 {min_distance}). 사칭 유도 문맥으로 판단됩니다.")
+
+        # --- [유형 일치 보정(J_g): 링크 위험과 문맥 위험이 같은 유형을 가리킬 때 가중치 부여] ---
+        if risk_score >= 90 and matched_urgency:
+            risk_score = min(risk_score + 5, 100)
+            reasons.append("🔗🧠 링크 기반 판단과 문맥 기반 판단이 동일한 사기 유형을 가리켜, 위험도가 상향 보정되었습니다.")
+
+        # --- [추가 룰 B: 표시된 링크 텍스트와 실제 연결 주소 불일치 감지] ---
+        markdown_link_pattern = r'\[(https?://[^\]]+)\]\((https?://[^\)]+)\)'
+        mismatched_links = re.findall(markdown_link_pattern, text)
+        for display_url, actual_url in mismatched_links:
+            if display_url.strip() != actual_url.strip():
+                risk_score += 20
+                reasons.append(f"🚨 화면에 보이는 링크 주소({display_url})와 실제 연결되는 주소({actual_url})가 서로 다릅니다. 클릭을 유도하는 위장 링크로 의심됩니다.")
 
         if not reasons:
             reasons.append("특이 사기 패턴 및 의심스러운 외부 링크가 발견되지 않았습니다.")
+        # --- [근거 우선순위(B_{g,j}) 정렬: 링크·문맥 동시 발견된 근거를 상단으로] ---
+        def reason_priority(r):
+            if "🔗🧠" in r:
+                return 0   # 링크+문맥 동시 근거 최우선
+            elif "🚨" in r or "⚠️" in r:
+                return 1   # 단일 위험 신호
+            else:
+                return 2   # 참고/안전 근거
 
-        risk_score = min(max(risk_score, 0), 100)
+        reasons = sorted(reasons, key=reason_priority)
 
         # --- [5. 실제 결과 렌더링] ---
         card_start("📊 분석 결과 리포트")
@@ -341,7 +385,7 @@ if submitted:
         )
 
         st.markdown(f"**위험도 점수: {risk_score}점 / 100점**")
-
+        st.caption("🔬 링크 위험값(U·P·H·T) · 문맥 위험값(O·D) 결합 산출 방식 적용 · 특허출원")
         # 경고 문구를 여기(메트릭보다 먼저)로 이동
         if risk_score >= 80:
             st.error("🚨 **고위험 경고:** 해당 메시지는 피싱 사기일 확률이 매우 높습니다! 절대 링크를 누르지 마세요.")
