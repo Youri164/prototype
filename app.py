@@ -261,7 +261,7 @@ if submitted:
                 official_domain = info["official"]
                 if found_url:
                     if official_domain in found_url:
-                        reasons.append(f"'{bank_name}' 관련 메시지이며, 공식 도메인({official_domain})이 확인되었습니다.")
+                        reasons.append(f"✅ '{bank_name}' 공식 도메인({official_domain})과 일치하여 안전한 링크로 확인되었습니다.")
                     else:
                         risk_score = 90
                         detected_type = f"{bank_name} 사칭 피싱 (고위험)"
@@ -319,8 +319,10 @@ if submitted:
                 return 0   # 링크+문맥 동시 근거 최우선
             elif "🚨" in r or "⚠️" in r:
                 return 1   # 단일 위험 신호
+            elif "✅" in r:
+                return 3   # 안전 확인 근거는 맨 아래
             else:
-                return 2   # 참고/안전 근거
+                return 2   # 기타 참고 근거
 
         reasons = sorted(reasons, key=reason_priority)
 
