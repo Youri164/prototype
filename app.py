@@ -113,6 +113,15 @@ BANK_DOMAINS = {
     "기업은행": {"official": "ibk.co.kr", "keywords": ["기업은행", "IBK"]}
 }
 
+# [신규 추가] 주요 공공·사법·행정기관 공식 도메인 및 키워드 딕셔너리
+PUBLIC_DOMAINS = {
+    "경찰청": {"official": "police.go.kr", "keywords": ["경찰청", "사이버수사대", "경찰"]},
+    "국세청": {"official": "hometax.go.kr", "keywords": ["국세청", "세무서", "홈택스"]},
+    "검찰청": {"official": "spo.go.kr", "keywords": ["검찰", "검찰청", "중앙지검"]},
+    "법원": {"official": "scourt.go.kr", "keywords": ["법원", "대법원", "사건번호"]},
+    "금융감독원": {"official": "fss.or.kr", "keywords": ["금융감독원", "금감원"]}
+}
+
 # --- [시연용 예시 문구] ---
 TRUE_EXAMPLE = """KB국민은행 이벤트를 소개합니다.
 100% 당첨은 기본! 쓰면 쓸수록 혜택 Level Up
@@ -270,6 +279,23 @@ if submitted:
                     risk_score = 50
                     detected_type = f"{bank_name} 관련 주의 문자"
                     reasons.append(f"'{bank_name}' 사칭 문구는 있으나 확인된 링크가 없습니다. 공식 번호인지 확인하세요.")
+        # --- [신규 추가] 공공·사법기관 사칭 탐지 로직 ---
+        for gov_name, info in PUBLIC_DOMAINS.items():
+            has_keyword = any(kw in text for kw in info["keywords"])
+            if has_keyword:
+                official_domain = info["official"]
+                if found_url:
+                    if official_domain in found_url:
+                        reasons.append(f"✅ '{gov_name}' 공식 도메인({official_domain})과 일치하여 안전한 링크로 확인되었습니다.")
+                    else:
+                        risk_score = max(risk_score, 95)  # 공공기관 사칭은 피해가 크므로 위험점수를 높게 설정
+                        detected_type = f"{gov_name} 사칭 피싱 (고위험)"
+                        reasons.append(f"🚨 본문에 '{gov_name}' 관련 사칭 키워드가 있으나, 연결된 링크가 공식 도메인({official_domain})이 아닙니다.")
+                else:
+                    risk_score = max(risk_score, 60)
+                    detected_type = f"{gov_name} 관련 주의 문자"
+                    reasons.append(f"⚠️ '{gov_name}' 사칭 의심 문구(출석, 소송, 미납 등)가 포함되어 있습니다. 주의하세요.")        
+
 
 # --- [추가 룰: 단축 URL 감지] ---
         if any(short in found_url for short in ["bit.ly", "t.co", "is.gd", "url.kr", "Me2.do"]):
