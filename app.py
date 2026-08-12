@@ -202,7 +202,7 @@ if submitted:
             (100, "📝 위험 판단 근거 우선순위 정렬 중..."),
         ]
 
-        STAGE_DURATION = 1.5  # 각 단계마다 머무르는 시간(초)
+        STAGE_DURATION = 1.2  # 각 단계마다 머무르는 시간(초)
 
         prev = 0
         for target, msg in loading_steps:
@@ -271,22 +271,19 @@ if submitted:
                     detected_type = f"{bank_name} 관련 주의 문자"
                     reasons.append(f"'{bank_name}' 사칭 문구는 있으나 확인된 링크가 없습니다. 공식 번호인지 확인하세요.")
 
-        if any(short in found_url for short in ["bit.ly", "t.co", "is.gd", "url.kr", "Me2.do"]):
-            risk_score += 25
-            reasons.append("🚨 주소를 숨기기 위한 단축 URL(리디렉션 의심)이 포함되어 있습니다.")
 # --- [추가 룰: 단축 URL 감지] ---
         if any(short in found_url for short in ["bit.ly", "t.co", "is.gd", "url.kr", "Me2.do"]):
             risk_score += 25
             reasons.append("🚨 주소를 숨기기 위한 단축 URL(리디렉션 의심)이 포함되어 있습니다.")
 
         # --- [추가 룰 A: 긴급성/과장 마케팅 문구 감지] ---
-        urgency_keywords = ["지금 바로", "즉시", "긴급", "선착순", "한정", "100% 당첨", "Get Get", "무료 증정"]
+        urgency_keywords = ["지금 바로", "즉시", "긴급", "선착순", "한정", "100% 당첨", "Get Get", "무료 증정", "99% 당첨", "혜택 Level Up", "놓치지 마세요", "마감 임박"]
         matched_urgency = [kw for kw in urgency_keywords if kw in text]
         if matched_urgency:
             risk_score += 10
             reasons.append(f"⚠️ 긴급성을 조성하거나 과도하게 유도하는 마케팅성 문구('{matched_urgency[0]}' 등)가 포함되어 있습니다.")
         # --- [문맥 위험값(C_g) 근사 계산: 주체-행위 토큰 거리 기반] ---
-        action_keywords = ["링크", "클릭", "확인", "접속", "누르", "터치"]
+        action_keywords = ["링크", "클릭", "확인", "접속", "누르", "터치", "이동", "참여", "응모", "다운로드", "설치", "로그인", "인증", "결제", "수령"]
         words = re.split(r'\s+', text)
 
         subject_positions = [i for i, w in enumerate(words) if any(kw in w for kw in sum([info["keywords"] for info in BANK_DOMAINS.values()], []))]
