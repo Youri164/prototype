@@ -288,7 +288,7 @@ if submitted:
 
         subject_positions = [i for i, w in enumerate(words) if any(kw in w for kw in sum([info["keywords"] for info in BANK_DOMAINS.values()], []))]
         action_positions = [i for i, w in enumerate(words) if any(kw in w for kw in action_keywords)]
-
+        
         if subject_positions and action_positions:
             min_distance = min(abs(s - a) for s in subject_positions for a in action_positions)
             if min_distance <= 3:
@@ -310,6 +310,17 @@ if submitted:
 
         if not reasons:
             reasons.append("특이 사기 패턴 및 의심스러운 외부 링크가 발견되지 않았습니다.")
+
+        # --- [추가 룰 B: 공포·불안감 조성 키워드 감지 (대출, 미납, 가압류, 소송, 경찰청 등)] ---
+        fear_keywords = [
+            "대출", "지원금", "미납", "연체", "가압류", "압류", "소송", 
+            "출석", "경찰청", "검찰", "금융감독원", "법원", "과태료", 
+            "범칙금", "요청서", "반송", "서류", "확인서", "고소장"
+        ]
+        matched_fear = [kw for kw in fear_keywords if kw in text]
+        if matched_fear:
+            risk_score += 15  # 공포심을 유발하는 단어이므로 가중치를 조금 더 높게 부여
+            reasons.append(f"🚨 수신자를 당황하게 하거나 불안감을 유발하는 키워드('{matched_fear[0]}' 등)가 감지되었습니다.")
         # --- [근거 우선순위(B_{g,j}) 정렬: 링크·문맥 동시 발견된 근거를 상단으로] ---
         def reason_priority(r):
             if "🔗🧠" in r:
