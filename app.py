@@ -299,14 +299,14 @@ if submitted:
 
 # --- [추가 룰: 단축 URL 감지] ---
         if any(short in found_url for short in ["bit.ly", "t.co", "is.gd", "url.kr", "Me2.do"]):
-            risk_score += 25
+            risk_score = min(risk_score + 25, 100)
             reasons.append("🚨 주소를 숨기기 위한 단축 URL(리디렉션 의심)이 포함되어 있습니다.")
 
         # --- [추가 룰 A: 긴급성/과장 마케팅 문구 감지] ---
         urgency_keywords = ["지금 바로", "즉시", "긴급", "선착순", "한정", "100% 당첨", "Get Get", "무료 증정", "99% 당첨", "혜택 Level Up", "놓치지 마세요", "마감 임박"]
         matched_urgency = [kw for kw in urgency_keywords if kw in text]
         if matched_urgency:
-            risk_score += 10
+            risk_score = min(risk_score + 10, 100)
             reasons.append(f"⚠️ 긴급성을 조성하거나 과도하게 유도하는 마케팅성 문구('{matched_urgency[0]}' 등)가 포함되어 있습니다.")
         # --- [문맥 위험값(C_g) 근사 계산: 주체-행위 토큰 거리 기반] ---
         action_keywords = ["링크", "클릭", "확인", "접속", "누르", "터치", "이동", "참여", "응모", "다운로드", "설치", "로그인", "인증", "결제", "수령"]
@@ -318,7 +318,7 @@ if submitted:
         if subject_positions and action_positions:
             min_distance = min(abs(s - a) for s in subject_positions for a in action_positions)
             if min_distance <= 3:
-                risk_score += 15
+                risk_score = min(risk_score + 15, 100)
                 reasons.append(f"🧠 발신 주체와 행위 요구 표현 사이의 문맥 거리가 매우 가깝습니다(토큰 거리 {min_distance}). 사칭 유도 문맥으로 판단됩니다.")
 
         # --- [유형 일치 보정(J_g): 링크 위험과 문맥 위험이 같은 유형을 가리킬 때 가중치 부여] ---
@@ -331,7 +331,7 @@ if submitted:
         mismatched_links = re.findall(markdown_link_pattern, text)
         for display_url, actual_url in mismatched_links:
             if display_url.strip() != actual_url.strip():
-                risk_score += 20
+                risk_score = min(risk_score + 20, 100)
                 reasons.append(f"🚨 화면에 보이는 링크 주소({display_url})와 실제 연결되는 주소({actual_url})가 서로 다릅니다. 클릭을 유도하는 위장 링크로 의심됩니다.")
 
         if not reasons:
