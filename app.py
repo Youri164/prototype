@@ -345,8 +345,12 @@ if submitted:
         ]
         matched_fear = [kw for kw in fear_keywords if kw in text]
         if matched_fear:
-            risk_score += 15  # 공포심을 유발하는 단어이므로 가중치를 조금 더 높게 부여
+            risk_score = min(risk_score + 15, 100)  # 공포심을 유발하는 단어이므로 가중치를 조금 더 높게 부여
             reasons.append(f"🚨 수신자를 당황하게 하거나 불안감을 유발하는 키워드('{matched_fear[0]}' 등)가 감지되었습니다.")
+        # ==========================================
+        # ✨ [핵심] 모든 점수 합산이 끝난 최종 위치에서 딱 1번 제한!
+        # ==========================================
+        risk_score = min(risk_score, 100)
         # --- [근거 우선순위(B_{g,j}) 정렬: 링크·문맥 동시 발견된 근거를 상단으로] ---
         def reason_priority(r):
             if "🔗🧠" in r:
